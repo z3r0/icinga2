@@ -66,7 +66,8 @@ void RedisWriter::UpdateAllConfigObjects(void)
 	ExecuteQuery({ "MULTI" });
 
 	for (const Type::Ptr& type : Type::GetAllTypes()) {
-		if (!ConfigObject::TypeInstance->IsAssignableFrom(type))
+		ConfigType *ctype = dynamic_cast<ConfigType *>(type.get());
+		if (!ctype)
 			continue;
 
 		String typeName = type->GetName();
