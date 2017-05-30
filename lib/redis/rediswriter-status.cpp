@@ -76,9 +76,6 @@ void RedisWriter::UpdateAllConfigObjects(void)
 		ExecuteQuery({ "DEL", "icinga:config:" + typeName, "icinga:config:" + typeName + ":checksum", "icinga:status:" + typeName });
 
 		/* fetch all objects and dump them */
-		ConfigType *ctype = dynamic_cast<ConfigType *>(type.get());
-		VERIFY(ctype);
-
 		for (const ConfigObject::Ptr& object : ctype->GetObjects()) {
 			SendConfigUpdate(object, typeName);
 			SendStatusUpdate(object, typeName);
@@ -148,12 +145,6 @@ void RedisWriter::SendConfigUpdate(const ConfigObject::Ptr& object, const String
 	if (!runtimeUpdate)
 		return;
 
-	/*
-	PUBLISH "icinga:config:dump" "Host"
-	PUBLISH "icinga:config:update" "Host:__name!checksumBody"
-	PUBLISH "icinga:config:delete" "Host:__name"
-	*/
-
 	ExecuteQuery({ "PUBLISH", "icinga:config:update", typeName + ":" + objectName + "!" + checkSumBody });
 }
 
@@ -170,12 +161,6 @@ void RedisWriter::SendConfigDelete(const ConfigObject::Ptr& object, const String
 	ExecuteQuery({ "HDEL", "icinga:config:" + typeName, objectName });
 	ExecuteQuery({ "HDEL", "icinga:config:" + typeName + ":checksum", objectName });
 	ExecuteQuery({ "HDEL", "icinga:status:" + typeName, objectName });
-
-	/*
-	PUBLISH "icinga:config:dump" "Host"
-	PUBLISH "icinga:config:update" "Host:__name!checksumBody"
-	PUBLISH "icinga:config:delete" "Host:__name"
-	*/
 
 	ExecuteQuery({ "PUBLISH", "icinga:config:delete", typeName + ":" + objectName });
 }
