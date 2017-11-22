@@ -17,55 +17,39 @@
  * Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.             *
  ******************************************************************************/
 
-#ifndef SCRIPTUTILS_H
-#define SCRIPTUTILS_H
+#ifndef FUTURE_H
+#define FUTURE_H
 
 #include "base/i2-base.hpp"
-#include "base/string.hpp"
-#include "base/array.hpp"
-#include "base/dictionary.hpp"
-#include "base/type.hpp"
-#include "base/configobject.hpp"
+#include "base/future.thpp"
+#include "base/value.hpp"
 #include "base/function.hpp"
-#include "base/future.hpp"
+#include <future>
 
 namespace icinga
 {
 
 /**
+ * A future value.
+ *
  * @ingroup base
  */
-class I2_BASE_API ScriptUtils
+class I2_BASE_API Future : public ObjectImpl<Future>
 {
 public:
-	static void StaticInitialize(void);
-	static String CastString(const Value& value);
-	static double CastNumber(const Value& value);
-	static bool CastBool(const Value& value);
-	static bool Regex(const std::vector<Value>& args);
-	static bool Match(const std::vector<Value>& args);
-	static bool CidrMatch(const std::vector<Value>& args);
-	static double Len(const Value& value);
-	static Array::Ptr Union(const std::vector<Value>& arguments);
-	static Array::Ptr Intersection(const std::vector<Value>& arguments);
-	static void Log(const std::vector<Value>& arguments);
-	static Array::Ptr Range(const std::vector<Value>& arguments);
-	static Type::Ptr TypeOf(const Value& value);
-	static Array::Ptr Keys(const Dictionary::Ptr& dict);
-	static ConfigObject::Ptr GetObject(const Value& type, const String& name);
-	static Array::Ptr GetObjects(const Type::Ptr& type);
-	static void Assert(const Value& arg);
-	static String MsiGetComponentPathShim(const String& component);
-	static Array::Ptr TrackParents(const Object::Ptr& parent);
-	static double Ptr(const Object::Ptr& object);
-	static Value Glob(const std::vector<Value>& args);
-	static Value GlobRecursive(const std::vector<Value>& args);
-	static Future::Ptr CallAsync(const std::vector<Value>& args);
+	DECLARE_OBJECT(Future);
+
+	Future(std::future<Value>&& fut);
+
+	Value Get(void);
+	Future::Ptr ContinueWith(const Function::Ptr& callback);
+
+	static Object::Ptr GetPrototype(void);
 
 private:
-	ScriptUtils(void);
+	std::future<Value> m_Future;
 };
 
 }
 
-#endif /* SCRIPTUTILS_H */
+#endif /* FUTURE_H */
