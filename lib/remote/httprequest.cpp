@@ -79,6 +79,9 @@ bool HttpRequest::Parse(StreamReadContext& src, bool may_wait)
 				return true;
 
 			} else {
+				if (Headers->GetLength() > 128)
+					BOOST_THROW_EXCEPTION(std::invalid_argument("Maximum number of HTTP request headers exceeded"));
+
 				String::SizeType pos = line.FindFirstOf(":");
 				if (pos == String::NPos)
 					BOOST_THROW_EXCEPTION(std::invalid_argument("Invalid HTTP request"));
