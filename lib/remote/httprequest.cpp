@@ -41,8 +41,15 @@ bool HttpRequest::Parse(StreamReadContext& src, bool may_wait)
 		String line;
 		StreamReadStatus srs = m_Stream->ReadLine(&line, src, may_wait);
 
-		if (srs != StatusNewItem)
+		if (srs != StatusNewItem) {
+			if (src.Size > 512)
+				BOOST_THROW_EXCEPTION(std::invalid_argument("Line length for HTTP header exceeded"));
+
 			return false;
+		}
+
+		if (line.GetLength() > 512)
+			BOOST_THROW_EXCEPTION(std::invalid_argument("Line length for HTTP header exceeded"));
 
 		if (m_State == HttpRequestStart) {
 			/* ignore trailing new-lines */
