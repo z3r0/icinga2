@@ -95,15 +95,6 @@ void HttpServerConnection::Disconnect()
 
 bool HttpServerConnection::ProcessMessage()
 {
-	static const size_t defaultContentLengthLimit = 1 * 1028 * 1028;
-	static const Dictionary::Ptr specialContentLengthLimits = new Dictionary({
-		  {"*", 512 * 1028 * 1028},
-		  {"config/modify", 512 * 1028 * 1028},
-		  {"console", 512 * 1028 * 1028},
-		  {"objects/create", 512 * 1028 * 1028},
-		  {"objects/modify", 512 * 1028 * 1028},
-		  {"objects/delete", 512 * 1028 * 1028}
-	});
 
 	bool res;
 	HttpResponse response(m_Stream, m_CurrentRequest);
@@ -151,38 +142,6 @@ bool HttpServerConnection::ProcessMessage()
 		}
 	}
 
-	size_t maxSize = defaultContentLengthLimit;
-
-	Array::Ptr permissions = m_AuthenticatedUser->GetPermissions();
-	ObjectLock olock(permissions);
-
-	for (const Value& permission : permissions) {
-
-		std::vector<String> permissionParts = String(permission).Split("/");
-
-		String permissionPath = permissionParts[0] + (permissionParts.size() > 1 ? "/" + permissionParts[1] : "");
-
-		int size = specialContentLengthLimits->Get(permissionPath);
-
-		maxSize = size > maxSize ? size : maxSize;
-	}
-
-	size_t contentLength = m_CurrentRequest.Headers->Get("content-length");
-
-	if (contentLength > maxSize) {
-		response.SetStatus(400, "Bad Request");
-		String msg = String("<h1>Content length exceeded maximum</h1>");
-		response.WriteBody(msg.CStr(), msg.GetLength());
-		response.Finish();
-
-		m_CurrentRequest.~HttpRequest();
-		new (&m_CurrentRequest) HttpRequest(m_Stream);
-
-		m_Stream->Shutdown();
-
-		return false;
-	}
-
 	if (!m_CurrentRequest.CompleteBody) {
 		try {
 			res = m_CurrentRequest.ParseBody(m_Context, false);
@@ -228,6 +187,16 @@ bool HttpServerConnection::ProcessMessage()
 
 bool HttpServerConnection::ManageHeaders(HttpResponse& response)
 {
+	static const size_t defaultContentLengthLimit = 1 * 1028 * 1028;
+	static const Dictionary::Ptr specialContentLengthLimits = new Dictionary({
+		  {"*", 512 * 1028 * 1028},
+		  {"config/modify", 512 * 1028 * 1028},
+		  {"console", 512 * 1028 * 1028},
+		  {"objects/create", 512 * 1028 * 1028},
+		  {"objects/modify", 512 * 1028 * 1028},
+		  {"objects/delete", 512 * 1028 * 1028}
+	});
+
 	if (m_CurrentRequest.Headers->Get("expect") == "100-continue") {
 		String continueResponse = "HTTP/1.1 100 Continue\r\n\r\n";
 		m_Stream->Write(continueResponse.CStr(), continueResponse.GetLength());
@@ -315,6 +284,29 @@ bool HttpServerConnection::ManageHeaders(HttpResponse& response)
 		}
 
 		response.Finish();
+		return false;
+	}
+
+	size_t maxSize = defaultContentLengthLimit;
+
+	Array::Ptr permissions = m_AuthenticatedUser->GetPermissions();
+	ObjectLock olock(permissions);
+
+	for (const Value& permission : permissions) {
+		std::vector<String> permissionParts = String(permission).Split("/");
+		String permissionPath = permissionParts[0] + (permissionParts.size() > 1 ? "/" + permissionParts[1] : "");
+		int size = specialContentLengthLimits->Get(permissionPath);
+		maxSize = size > maxSize ? size : maxSize;
+	}
+
+	size_t contentLength = m_CurrentRequest.Headers->Get("content-length");
+
+	if (contentLength > maxSize) {
+		response.SetStatus(400, "Bad Request");
+		String msg = String("<h1>Content length exceeded maximum</h1>");
+		response.WriteBody(msg.CStr(), msg.GetLength());
+		response.Finish();
+
 		return false;
 	}
 
